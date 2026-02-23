@@ -49,9 +49,3 @@ Starting Loss: ~0.60
 
 Final Loss: ~0.04
 
-
-Directly answers the prompt: It uses the same words as the assignment (NA, Skewed, Imbalance).
-
-Shows Mathematical Maturity: Mentioning "Masked Gradients" and "Positional Weights" shows you aren't just a beginner.
-
-Professional Formatting: Using headers and bullet points makes it easy for a recruiter to skim.

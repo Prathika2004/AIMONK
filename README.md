@@ -1,51 +1,38 @@
+# AIMONK — Multi-Label Image Attribute Classification
 
-##Multi-label Image Classification (Aimonk Assignment)
+## Problem Statement
+Given a dataset of images where each image can carry up to four independent binary attributes (`Attr1`–`Attr4`), build a model that predicts all four attributes for a new image. Two things make this harder than standard multi-label classification:
+- Some attribute labels are missing (`NA`) rather than 0/1 — a naive loss function would either crash or learn the wrong signal by treating missing labels as negatives.
+- The attributes are imbalanced — some appear far less often than others, so a standard loss biases the model toward always predicting the majority class.
 
-This project implements a deep learning solution for a multi-label image classification task where images can have multiple attributes simultaneously (Attr1-Attr4).
+## What This Project Solves
+- **Missing labels:** Implemented a custom `MaskedBCEWithLogitsLoss` — `NA` values are mapped to `-1` at load time, and during training a binary mask zeroes out the gradient contribution from any `-1` label, so the model only ever learns from confirmed annotations.
+- **Class imbalance:** Computed a per-attribute negative-to-positive ratio and passed it as `pos_weight` into the loss, forcing the optimizer to weight rare-attribute mistakes more heavily.
+- **Data quality:** Cleaned inconsistent label strings (e.g. `"1mobilenet"` → `1`) and filtered the dataframe down to only images that actually exist on disk before training (dataset had 972 usable images after this sync step).
 
-🚀 Key Challenges & Solutions
-1. Handling Missing Information (The "NA" Problem)
+## Approach
+- **Backbone:** ResNet50 pretrained on ImageNet.
+- **Fine-tuning:** Replaced the final fully connected layer with a 4-neuron output (one logit per attribute) and trained end-to-end at a low learning rate (`1e-4`, Adam) to preserve the pretrained features.
+- **Data pipeline:** Custom PyTorch `Dataset`/`DataLoader`, images resized to 224x224, normalized with ImageNet stats, batch size 8.
 
-Challenge: Some images have "NA" for certain attributes. Standard loss functions would fail or learn incorrect patterns from these.
-Solution: I implemented a Masked Binary Cross-Entropy (BCE) Loss.
+## Tech Stack
+Python, PyTorch, torchvision, pandas, Pillow, matplotlib, NumPy — developed and run on Google Colab (GPU runtime).
 
-I mapped "NA" values to a placeholder (-1).
+## Results
+Trained for 20 epochs. Average training loss dropped from **0.594 to 0.043**, with the loss curve saved as a plot in the notebook.
 
-During training, the loss function creates a "binary mask" that ignores the gradients for any attribute marked as -1. This ensures the model only learns from confirmed data without discarding the entire image.
+## How to Run
+This notebook was built for Google Colab and expects your data in Google Drive:
+1. Open `AIMONK_Assignment.ipynb` in Colab.
+2. Place your dataset in Google Drive as:
+   ```
+   MyDrive/Multilabel/labels.txt
+   MyDrive/Multilabel/images/
+   ```
+3. Run all cells top to bottom — the first cell mounts your Drive.
+4. Trained weights are saved as `aimonk_model_weights.pth`; the final cell exposes a `predict_image(image_path)` function for inference on a new image.
 
-2. Handling Data Imbalance (Skewness)
+To run locally instead of Colab, install dependencies with `pip install -r requirements.txt` and update `FOLDER_PATH`/`IMAGE_DIR` to a local dataset path.
 
-Challenge: Some attributes appear much less frequently than others, leading to a biased model.
-Solution: I implemented Positional Weights in the loss function. I calculated the ratio of negative-to-positive samples for each attribute and passed these as pos_weight to the optimizer. This forces the model to prioritize learning the rare attributes.
-
-3. Transfer Learning & Architecture
-
-Backbone: ResNet50 (Pre-trained on ImageNet).
-
-Fine-tuning: I replaced the final fully connected layer to output 4 neurons (one for each attribute) and trained with a low learning rate to preserve the pre-trained feature extraction capabilities.
-
-🛠️ Technical Implementation
-Data Preprocessing
-
-Cleaning: Handled string inconsistencies (e.g., converting "1mobilenet" to "1").
-
-Syncing: Implemented a verification step to ensure the dataframe only contains images that physically exist on the disk.
-
-Augmentation: Applied Resizing (224x224), Normalization, and Random Horizontal Flips to improve generalization.
-
-Deliverables included:
-
-Training Code: Script to fine-tune the model and save weights.
-
-Loss Curve: A plot titled Aimonk_multilabel_problem showing training_loss vs iteration_number.
-
-Inference Script: A function to take a raw image and print the list of detected attributes.
-
-📈 Results
-
-The model was trained for 20 epochs, achieving a significant reduction in loss:
-
-Starting Loss: ~0.60
-
-Final Loss: ~0.04
-
+## Why This Matters
+Masked-loss + pos_weight is a reusable pattern anywhere labels are partially missing and imbalanced — e.g. product-attribute tagging, content moderation flags, or medical findings where not every image is annotated for every condition.
